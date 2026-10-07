@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+model Student {
+  id          String        @id @default(cuid())
+  studentCode String        @unique
+  name        String
+  email       String        @unique
+  phone       String?
+
+  payments    PaymentOrder[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model PaymentOrder {
+  id                String              @id @default(cuid())
+
+  orderId           String              @unique
+  studentId         String
+
+  amount            Decimal             @db.Decimal(12, 2)
+  currency          String              @default("INR")
+  purpose           String
+
+  status            PaymentStatus       @default(CREATED)
+
+  cashfreeOrderId   String?             @unique
+  paymentSessionId  String?
+
+  idempotencyKey    String?             @unique
+
+  expiresAt         DateTime?
+
+  student           Student             @relation(fields: [studentId], references: [id])
+
+  transactions      PaymentTransaction[]
+  webhookEvents     PaymentWebhookEvent[]
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([studentId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PaymentTransaction {
+  id                String            @id @default(cuid())
+
+  paymentOrderId    String
+
+  cashfreePaymentId String?           @unique
+
+  amount            Decimal           @db.Decimal(12, 2)
+
+  status            TransactionStatus @default(PENDING)
+
+  paymentMethod     String?
+
+  gatewayResponse   Json?
+
+  paymentOrder      PaymentOrder      @relation(fields: [paymentOrderId], references: [id])
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([paymentOrderId])
+  @@index([status])
+}
+
+model PaymentWebhookEvent {
+  id            String        @id @default(cuid())
+
+  eventId       String        @unique
+
+  eventType     String
+
+  orderId       String?
+
+  payload       Json
+
+  signature     String?
+
+  processed     Boolean       @default(false)
+
+  processedAt   DateTime?
+
+  paymentOrder  PaymentOrder? @relation(fields: [orderId], references: [orderId])
+
+  createdAt     DateTime      @default(now())
+
+  @@index([orderId])
+  @@index([eventType])
+  @@index([processed])
+}

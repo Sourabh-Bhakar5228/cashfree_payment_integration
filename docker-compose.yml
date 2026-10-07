@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: cashfree-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cashfree_ums
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: .
+    container_name: cashfree-payment-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/cashfree_ums?schema=public
+      CASHFREE_APP_ID: ${CASHFREE_APP_ID}
+      CASHFREE_SECRET_KEY: ${CASHFREE_SECRET_KEY}
+      CASHFREE_ENVIRONMENT: sandbox
+      CASHFREE_API_VERSION: 2025-01-01
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
